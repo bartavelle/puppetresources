@@ -18,4 +18,4 @@ executable puppetresources
   extensions:          BangPatterns
   main-is:             Main.hs
   -- other-modules:       
-  build-depends:       base,language-puppet,hsfacter
+  build-depends:       base,language-puppet,hsfacter,containers

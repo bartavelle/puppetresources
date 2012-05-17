@@ -1,8 +1,11 @@
 import System.Environment
 import Puppet.Init
 import Puppet.Daemon
+import Puppet.Printers
 import Facter
-import Data.List 
+import Data.List
+import System.IO
+import qualified Data.Map as Map
 
 usage = error "Usage: puppetresource puppetdir nodename"
 
@@ -14,7 +17,11 @@ main = do
         facts = genFacts []
     queryfunc <- initDaemon prefs
     rawfacts <- allFacts
-    mapM print (sort rawfacts)
-    return ()
---    resp <- queryfunc nodename facts
---    print resp
+    let ofacts = genFacts rawfacts
+        (hostname, ddomainname) = break (== '.') nodename
+        domainname = tail $ ddomainname
+        nfacts = genFacts [("fqdn", nodename), ("hostname", hostname), ("domain", domainname)]
+    resp <- queryfunc nodename (Map.union facts nfacts)
+    case resp of
+        Left err -> hPutStrLn stderr err
+        Right x -> putStrLn $ showFCatalog x
