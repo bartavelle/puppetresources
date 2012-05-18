@@ -14,14 +14,14 @@ main = do
     let (puppetdir, nodename) | (length args /= 2) = usage
                                 | otherwise = (args !! 0, args !! 1)
         prefs = genPrefs puppetdir
-        facts = genFacts []
     queryfunc <- initDaemon prefs
     rawfacts <- allFacts
     let ofacts = genFacts rawfacts
         (hostname, ddomainname) = break (== '.') nodename
         domainname = tail $ ddomainname
         nfacts = genFacts [("fqdn", nodename), ("hostname", hostname), ("domain", domainname)]
-    resp <- queryfunc nodename (Map.union facts nfacts)
+        allfacts = Map.union ofacts nfacts
+    resp <- queryfunc nodename allfacts
     case resp of
         Left err -> hPutStrLn stderr err
         Right x -> putStrLn $ showFCatalog x
