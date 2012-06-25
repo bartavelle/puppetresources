@@ -4,7 +4,7 @@ Typical ghci usage :
     
 queryfunc <- initializedaemon "/home/user/git/puppet/"
 c1 <- queryfunc "host1.test"
-c2 <- queryfunc "host2"
+c2 <- queryfunc "host2.test"
 diff c1 c2
 
 -}
@@ -20,10 +20,10 @@ import qualified Data.Map as Map
 import Data.Algorithm.Diff
 import qualified System.Log.Logger as LOG
 
-usage = error "Usage: puppetresource puppetdir nodename"
+usage = error "Usage: puppetresource puppetdir nodename [filename]"
 
 initializedaemon puppetdir = do
-    LOG.updateGlobalLogger "Puppet.Daemon" (LOG.setLevel LOG.DEBUG)
+    LOG.updateGlobalLogger "Puppet.Daemon" (LOG.setLevel LOG.INFO)
     rawfacts <- allFacts
     queryfunc <- initDaemon (genPrefs puppetdir)
     return (\nodename -> do
@@ -99,8 +99,12 @@ diff :: FinalCatalog -> FinalCatalog -> IO ()
 diff c1 c2 = do
     let onlyfirsts = Map.difference c1 c2
         (onlyseconds, differences) = Map.foldrWithKey (checkdiff c1) (Map.empty, []) c2
-    print onlyfirsts
-    print onlyseconds
+    if Map.null onlyfirsts
+        then return ()
+        else putStrLn $ "Only in the first  catalog:\n" ++ showFCatalog onlyfirsts
+    if Map.null onlyseconds
+        then return ()
+        else putStrLn $ "Only in the second catalog:\n" ++ showFCatalog onlyseconds
     mapM_ putStrLn differences
 
 main = do
