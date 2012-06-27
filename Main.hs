@@ -31,7 +31,7 @@ initializedaemon puppetdir = do
             (hostname, ddomainname) = break (== '.') nodename
             domainname = tail $ ddomainname
             nfacts = genFacts [("fqdn", nodename), ("hostname", hostname), ("domain", domainname)]
-            allfacts = Map.union ofacts nfacts
+            allfacts = Map.union nfacts ofacts
         o <- queryfunc nodename allfacts
         case o of
             Left err -> error err
