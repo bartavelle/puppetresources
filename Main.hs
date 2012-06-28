@@ -19,6 +19,11 @@ import System.IO
 import qualified Data.Map as Map
 import Data.Algorithm.Diff
 import qualified System.Log.Logger as LOG
+import Puppet.DSL.Loader
+import System.Exit
+import Control.Monad
+import Control.Monad.Error (runErrorT)
+import Puppet.DSL.Printer
 
 usage = error "Usage: puppetresource puppetdir nodename [filename]"
 
@@ -107,8 +112,17 @@ diff c1 c2 = do
         else putStrLn $ "Only in the second catalog:\n" ++ showFCatalog onlyseconds
     mapM_ putStrLn differences
 
+doparse :: FilePath -> IO ()
+doparse fp = do
+    parsed <- runErrorT (parseFile fp)
+    case parsed of
+        Right ps -> putStrLn $ showAST ps
+        Left err -> error err
+    exitWith ExitSuccess
+
 main = do
     args <- getArgs
+    when (length args == 1) (doparse  (head args))
     let (puppetdir, nodename) | (length args /= 2) && (length args /= 3) = usage
                               | otherwise = (args !! 0, args !! 1)
     queryfunc <- initializedaemon puppetdir
