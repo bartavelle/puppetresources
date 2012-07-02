@@ -1,0 +1,23 @@
+{
+  "name": "puppetlabs-collectd",
+  "dependencies": [
+
+  ],
+  "author": "",
+  "license": "",
+  "version": "0.0.1",
+  "types": [
+
+  ],
+  "checksums": {
+    "manifests/params.pp": "faf2d15311e47055e7805b332477d217",
+    "manifests/server.pp": "c46d6549c05257202b04f763150be25c",
+    "templates/collectd-apache.conf.erb": "5e0c0415d8fc290dcbf43537a568fd36",
+    "templates/collectd-server.conf.erb": "a60b08c8c8c444dee97bb6046c018a24",
+    "manifests/client.pp": "179a573671d93b39f4ef9e1df09ca250",
+    "templates/collectd-client.conf.erb": "b60e2c51aec9da1ba94410ab2942f1c6",
+    "Modulefile": "f610e8652bbd669b38f2a32a2aa77dbb",
+    "manifests/init.pp": "8f9b3f3ee89de41406838dc8d35cb050"
+  },
+  "source": ""
+}
