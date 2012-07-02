@@ -1,13 +1,92 @@
-{- Horrible and hackish ... but useful
- 
-Typical ghci usage :
+{-|
+
+Horrible and hackish ... but damn useful. This can be used as a standalone
+executable or a ghci script for interactive usage. It comes with a sample Puppet
+site (that I hope will gets more realistic later).
+
+When given a single argument, it will try to parse the given file, and will
+print the parsed values :
+
+> $ puppetresources samplesite/manifests/site.pp
+> node test.nod {
+>     apt::builddep { Interpolable [Literal "glusterfs-server"]:
+>     ;
+>     }
+>     ...
+
+With two arguments, it will try to compute the catalog for a given node. The
+first argument must be the path to the Puppet directory and the second the
+name of the node. Note that regexp node names do not work yet.
+
+> $ puppetresources samplesite test.nod
+> The defined() function is not implemented for resource references. Returning true at "samplesite/modules/apt/manifests/ppa.pp" (line 20, column 3)
+> The defined() function is not implemented for resource references. Returning true at "samplesite/modules/apt/manifests/key.pp" (line 38, column 7)
+> The defined() function is not implemented for resource references. Returning true at "samplesite/modules/apt/manifests/key.pp" (line 42, column 7)
+> anchor {
+>     "apt::builddep::glusterfs-server": #"samplesite/modules/apt/manifests/builddep.pp" (line 12, column 12)
+>         name => "apt::builddep::glusterfs-server";
+>     "apt::key/Add key: 55BE302B from Apt::Source debian_unstable": #"samplesite/modules/apt/manifests/key.pp" (line 32, column 16)
+>         name => "apt::key/Add key: 55BE302B from Apt::Source debian_unstable";
+> ...
+
+When adding a file name as the third argument to the previous invocation, it
+will display the value of the /content/ attribute of the named /file/ resource.
+
+> $ puppetresources samplesite test.nod karmic.pref
+> The defined() function is not implemented for resource references. Returning true at "samplesite/modules/apt/manifests/ppa.pp" (line 20, column 3)
+> The defined() function is not implemented for resource references. Returning true at "samplesite/modules/apt/manifests/key.pp" (line 38, column 7)
+> The defined() function is not implemented for resource references. Returning true at "samplesite/modules/apt/manifests/key.pp" (line 42, column 7)
+> # karmic
+> Package: *
+> Pin: release a=karmic
+> Pin-Priority: 700
+
+With GHCI there are tons of things you can do. First initialize it 
     
-queryfunc <- initializedaemon "/home/user/git/puppet/"
-c1 <- queryfunc "host1.test"
-c2 <- queryfunc "host2.test"
-diff c1 c2
+>>> queryfunc <- initializedaemon "./samplesite/"
+
+You can now compute catalogs for various nodes.
+
+>>> c1 <- queryfunc "test.nod"
+The defined() function is not implemented for resource references. Returning true at "./samplesite//modules/apt/manifests/ppa.pp" (line 20, column 3)
+The defined() function is not implemented for resource references. Returning true at "./samplesite//modules/apt/manifests/key.pp" (line 38, column 7)
+The defined() function is not implemented for resource references. Returning true at "./samplesite//modules/apt/manifests/key.pp" (line 42, column 7)
+>>> c2 <- queryfunc "test2.nod"
+The defined() function is not implemented for resource references. Returning true at "./samplesite//modules/apt/manifests/ppa.pp" (line 20, column 3)
+The defined() function is not implemented for resource references. Returning true at "./samplesite//modules/apt/manifests/key.pp" (line 38, column 7)
+The defined() function is not implemented for resource references. Returning true at "./samplesite//modules/apt/manifests/key.pp" (line 42, column 7)
+
+And you can check what the difference is between catalogs.
+
+>>> diff c1 c2
+file[karmic-updates.pref] {
+# content
+    + Pin-Priority: 750
+    - Pin-Priority: 700
+}
+
+You also can manipulate catalogs.
+
+>>> Map.size c1
+25
+>>> mapM_ print $ Map.toList $ Map.map (length . lines . (\x -> case x of (ResolvedString n) -> n) .fromJust . Map.lookup "content" . rrparams) $ Map.filter (Map.member "content" . rrparams) c1
+(("file","debian_unstable.list"),3)
+(("file","debian_unstable.pref"),4)
+(("file","karmic-security.pref"),4)
+(("file","karmic-updates.pref"),4)
+(("file","karmic.pref"),4)
+
+A typical usage of this tool is to compute a reference catalog, and then check the differences as you alter it. This can be done this way :
+
+>>> reference <- queryfunc "test.nod"
+
+And then run the following command every time you need to verify your changes are correct :
+
+>>> queryfunc "test.nod" >>= diff reference
 
 -}
+module Main (initializedaemon, diff, main) where 
+
 import System.Environment
 import Puppet.Init
 import Puppet.Daemon
@@ -27,6 +106,12 @@ import Puppet.DSL.Printer
 
 usage = error "Usage: puppetresource puppetdir nodename [filename]"
 
+{-| Does all the work of initializing a daemon for querying.
+Returns the final catalog when given a node name. Note that this is pretty
+hackish as it will generate facts from the local computer !
+-}
+
+initializedaemon :: String -> IO ([Char] -> IO FinalCatalog)
 initializedaemon puppetdir = do
     LOG.updateGlobalLogger "Puppet.Daemon" (LOG.setLevel LOG.INFO)
     rawfacts <- allFacts
@@ -100,6 +185,11 @@ checkdiff refmap resid res (curseconds, curdiffs) = (newseconds, newdiffs)
                     then curdiffs
                     else (getdiff resid x res) : curdiffs
 
+{-| The diffing function, will output what is only in the first catalog, then
+what is only in the second, and will end with a diff between common resources.
+The /content/ parameter is handled in a special way so that the diff is
+useful.
+-}
 diff :: FinalCatalog -> FinalCatalog -> IO ()
 diff c1 c2 = do
     let onlyfirsts = Map.difference c1 c2
@@ -120,6 +210,8 @@ doparse fp = do
         Left err -> error err
     exitWith ExitSuccess
 
+
+main :: IO ()
 main = do
     args <- getArgs
     when (length args == 1) (doparse  (head args))
