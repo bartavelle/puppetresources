@@ -8,7 +8,7 @@ synopsis:            A program that displays the puppet resources associated to 
 license:             GPL-3
 license-file:        LICENSE
 author:              Simon Marechal
-maintainer:          simon@banquise.net
+maintainer:          bartavelle@gmail.com
 homepage:            http://lpuppet.banquise.net
 -- copyright:           
 category:            System
