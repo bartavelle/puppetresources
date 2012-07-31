@@ -210,7 +210,15 @@ doparse fp = do
         Left err -> error err
     exitWith ExitSuccess
 
-
+-- prints the content of a file
+printContent :: String -> FinalCatalog -> IO ()
+printContent filename catalog =
+    case (Map.lookup ("file", filename) catalog) of
+        Nothing -> error "File not found"
+        Just r  -> case (Map.lookup "content" (rrparams r)) of
+            Nothing -> error "This file has no content"
+            Just (ResolvedString c)  -> putStrLn c
+            Just x -> print x
 main :: IO ()
 main = do
     args <- getArgs
@@ -220,10 +228,5 @@ main = do
     queryfunc <- initializedaemon puppetdir
     x <- queryfunc nodename
     if length args == 3
-        then case (Map.lookup ("file",args !! 2) x) of
-            Nothing -> error "File not found"
-            Just r  -> case (Map.lookup "content" (rrparams r)) of
-                Nothing -> error "This file has no content"
-                Just (ResolvedString c)  -> putStrLn c
-                Just x -> print x
+        then printContent (args !! 2) x
         else putStrLn $ showFCatalog x
