@@ -153,7 +153,6 @@ paramdiff lpmap rpname rpval curdiff = curdiff ++ newdiff
                     then []
                     else showpdiff rpname lpval rpval
 
-
 getdiff :: ResIdentifier -> RResource -> RResource -> String
 getdiff (rtype,rname) r1 r2 = rtype ++ "[" ++ rname ++ "]" ++ " {\n" ++ (concatMap (\x -> x ++"\n") difflist) ++ "}"
     where
@@ -219,6 +218,11 @@ printContent filename catalog =
             Nothing -> error "This file has no content"
             Just (ResolvedString c)  -> putStrLn c
             Just x -> print x
+
+r2s :: ResolvedValue -> String
+r2s (ResolvedString x)  = x
+r2s x                   = show x
+
 main :: IO ()
 main = do
     args <- getArgs
