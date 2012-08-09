@@ -120,7 +120,7 @@ initializedaemon puppetdir = do
         let ofacts = genFacts rawfacts
             (hostname, ddomainname) = break (== '.') nodename
             domainname = tail $ ddomainname
-            nfacts = genFacts [("fqdn", nodename), ("hostname", hostname), ("domain", domainname)]
+            nfacts = genFacts [("fqdn", nodename), ("hostname", hostname), ("domain", domainname), ("rootrsa", "xxx")]
             allfacts = Map.union nfacts ofacts
         o <- queryfunc nodename allfacts
         case o of
