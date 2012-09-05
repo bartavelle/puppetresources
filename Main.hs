@@ -223,6 +223,14 @@ r2s :: ResolvedValue -> String
 r2s (ResolvedString x)  = x
 r2s x                   = show x
 
+-- filters resources by type name
+getResourcesOfType :: String -> FinalCatalog -> FinalCatalog
+getResourcesOfType rtype = Map.filter (\r -> rrtype r == rtype)
+
+-- just extract the names of the resources
+getResourceNames :: FinalCatalog -> [String]
+getResourceNames cat = map snd $ Map.keys cat
+
 main :: IO ()
 main = do
     args <- getArgs
