@@ -41,8 +41,22 @@ will display the value of the /content/ attribute of the named /file/ resource.
 > Pin: release a=karmic
 > Pin-Priority: 700
 
-With GHCI there are tons of things you can do. First initialize it 
-    
+You can also just use a resource name :
+
+> $ puppetresources samplesite test.nod 'exec[apt_update]'
+> exec {
+>   "apt_update": #"samplesite/modules/apt/manifests/update.pp" (line 4, column 10)
+>       command     => "/usr/bin/apt-get update",
+>       logoutput   => "false",
+>       refreshonly => "true",
+>       returns     => 0,
+>       timeout     => 300,
+>       tries       => 1,
+>       try_sleep   => 0;
+> }
+
+With GHCI there are tons of things you can do. First initialize it
+
 >>> queryfunc <- initializedaemon "./samplesite/"
 
 You can now compute catalogs for various nodes.
