@@ -103,6 +103,7 @@ import System.Exit
 import Control.Monad
 import Control.Monad.Error (runErrorT)
 import Puppet.DSL.Printer
+import Data.Char (toLower)
 
 usage = error "Usage: puppetresource puppetdir nodename [filename]"
 
@@ -219,6 +220,14 @@ printContent filename catalog =
             Just (ResolvedString c)  -> putStrLn c
             Just x -> print x
 
+-- pretty print a resource
+-- if this resource has content, works like printContent
+printResource :: String -> String -> FinalCatalog -> IO ()
+printResource restype resname catalog =
+    case (Map.lookup (restype, resname) catalog) of
+        Nothing -> error $ "Resource " ++ restype ++ "[" ++ resname ++ "] does not exists."
+        Just r  -> putStrLn $ showFCatalog $ Map.singleton (restype, resname) r
+
 r2s :: ResolvedValue -> String
 r2s (ResolvedString x)  = x
 r2s x                   = show x
@@ -237,8 +246,20 @@ main = do
     when (length args == 1) (doparse  (head args))
     let (puppetdir, nodename) | (length args /= 2) && (length args /= 3) = usage
                               | otherwise = (args !! 0, args !! 1)
+        getresname :: String -> Maybe (String, String)
+        getresname r =
+            let isresname = ((head $ reverse r) == ']') && ('[' `elem` r)
+                (rtype, rname) = break (== '[') r
+            in if isresname
+                then Just (map toLower rtype, tail $ reverse $ (tail $ reverse rname))
+                else Nothing
+        handlePrintResource resname cat
+            = case (getresname resname) of
+                Just (t,n) -> printResource t n cat
+                Nothing    -> printContent resname cat
+
     queryfunc <- initializedaemon puppetdir
     x <- queryfunc nodename
     if length args == 3
-        then printContent (args !! 2) x
+        then handlePrintResource (args !! 2) x
         else putStrLn $ showFCatalog x
