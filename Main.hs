@@ -129,15 +129,9 @@ hackish as it will generate facts from the local computer !
 initializedaemon :: String -> IO ([Char] -> IO FinalCatalog)
 initializedaemon puppetdir = do
     LOG.updateGlobalLogger "Puppet.Daemon" (LOG.setLevel LOG.INFO)
-    rawfacts <- allFacts
     queryfunc <- initDaemon (genPrefs puppetdir)
     return (\nodename -> do
-        let ofacts = genFacts rawfacts
-            (hostname, ddomainname) = break (== '.') nodename
-            domainname = tail $ ddomainname
-            nfacts = genFacts [("fqdn", nodename), ("hostname", hostname), ("domain", domainname), ("rootrsa", "xxx")]
-            allfacts = Map.union nfacts ofacts
-        o <- queryfunc nodename allfacts
+        o <- allFacts nodename >>= queryfunc nodename
         case o of
             Left err -> error err
             Right x -> return x
