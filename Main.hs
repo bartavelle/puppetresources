@@ -126,16 +126,21 @@ Returns the final catalog when given a node name. Note that this is pretty
 hackish as it will generate facts from the local computer !
 -}
 
-initializedaemon :: String -> IO ([Char] -> IO FinalCatalog)
-initializedaemon puppetdir = do
+initializedaemonWithPuppet :: Maybe String -> String -> IO ([Char] -> IO FinalCatalog)
+initializedaemonWithPuppet purl puppetdir = do
     LOG.updateGlobalLogger "Puppet.Daemon" (LOG.setLevel LOG.INFO)
-    queryfunc <- initDaemon (genPrefs puppetdir)
+    let prefs = genPrefs puppetdir
+    queryfunc <- initDaemon (prefs { puppetDBurl = purl })
     return (\nodename -> do
         o <- allFacts nodename >>= queryfunc nodename
         case o of
             Left err -> error err
             Right x -> return x
         )
+
+{-| A helper for when you don't want to use PuppetDB -}
+initializedaemon :: String -> IO ([Char] -> IO FinalCatalog)
+initializedaemon = initializedaemonWithPuppet Nothing
 
 showparam (k,v) = k ++ " => " ++ show v
 
@@ -251,9 +256,12 @@ getResourceNames cat = map snd $ Map.keys cat
 main :: IO ()
 main = do
     args <- getArgs
-    when (length args == 1) (doparse  (head args))
-    let (puppetdir, nodename) | (length args /= 2) && (length args /= 3) = usage
-                              | otherwise = (args !! 0, args !! 1)
+    let (rargs, puppeturl) = case args of
+                             ("-r":pu:xs) -> (xs,   Just pu)
+                             _            -> (args, Nothing)
+    when (length rargs == 1) (doparse  (head rargs))
+    let (puppetdir, nodename) | (length rargs /= 2) && (length rargs /= 3) = usage
+                              | otherwise = (rargs !! 0, rargs !! 1)
         getresname :: String -> Maybe (String, String)
         getresname r =
             let isresname = ((head $ reverse r) == ']') && ('[' `elem` r)
@@ -266,8 +274,8 @@ main = do
                 Just (t,n) -> printResource t n cat
                 Nothing    -> printContent resname cat
 
-    queryfunc <- initializedaemon puppetdir
+    queryfunc <- initializedaemonWithPuppet puppeturl puppetdir
     x <- queryfunc nodename
-    if length args == 3
-        then handlePrintResource (args !! 2) x
+    if length rargs == 3
+        then handlePrintResource (rargs !! 2) x
         else putStrLn $ showFCatalog x
