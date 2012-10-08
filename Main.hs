@@ -129,7 +129,7 @@ hackish as it will generate facts from the local computer !
 initializedaemonWithPuppet :: Maybe String -> String -> IO ([Char] -> IO FinalCatalog)
 initializedaemonWithPuppet purl puppetdir = do
     LOG.updateGlobalLogger "Puppet.Daemon" (LOG.setLevel LOG.INFO)
-    let prefs = genPrefs puppetdir
+    prefs <- genPrefs puppetdir
     queryfunc <- initDaemon (prefs { puppetDBurl = purl })
     return (\nodename -> do
         o <- allFacts nodename >>= queryfunc nodename
