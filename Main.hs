@@ -99,7 +99,7 @@ And then run the following command every time you need to verify your changes ar
 >>> queryfunc "test.nod" >>= diff reference
 
 -}
-module Main (initializedaemon, diff, main) where 
+module Main (initializedaemon, diff, main) where
 
 import System.Environment
 import Puppet.Init
@@ -118,6 +118,7 @@ import Control.Monad
 import Control.Monad.Error (runErrorT)
 import Puppet.DSL.Printer
 import Data.Char (toLower)
+import Puppet.Testing
 
 usage = error "Usage: puppetresource puppetdir nodename [filename]"
 
@@ -276,6 +277,10 @@ main = do
 
     queryfunc <- initializedaemonWithPuppet puppeturl puppetdir
     x <- queryfunc nodename
+    tests <- testCatalog puppetdir x []
+    case tests of
+        Right _ -> return ()
+        Left rr -> error rr
     if length rargs == 3
         then handlePrintResource (rargs !! 2) x
         else putStrLn $ showFCatalog x
