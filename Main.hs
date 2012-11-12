@@ -131,7 +131,7 @@ initializedaemonWithPuppet :: Maybe String -> String -> IO ([Char] -> IO FinalCa
 initializedaemonWithPuppet purl puppetdir = do
     LOG.updateGlobalLogger "Puppet.Daemon" (LOG.setLevel LOG.INFO)
     prefs <- genPrefs puppetdir
-    queryfunc <- initDaemon (prefs { puppetDBurl = purl })
+    (queryfunc, _, _, _) <- initDaemon (prefs { puppetDBurl = purl })
     return (\nodename -> do
         o <- allFacts nodename >>= queryfunc nodename
         case o of
