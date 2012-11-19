@@ -122,6 +122,12 @@ import Puppet.Testing
 
 usage = error "Usage: puppetresource puppetdir nodename [filename]"
 
+addRequire :: FinalCatalog -> ((ResIdentifier, ResIdentifier), LinkInfo) -> FinalCatalog
+addRequire curcat ((src, dst), (ltype, _, _)) =
+        case Map.lookup src curcat of
+            Nothing -> curcat
+            Just res -> Map.insert src (res { rrelations = (ltype, dst) : rrelations res }) curcat
+
 {-| Does all the work of initializing a daemon for querying.
 Returns the final catalog when given a node name. Note that this is pretty
 hackish as it will generate facts from the local computer !
@@ -136,7 +142,7 @@ initializedaemonWithPuppet purl puppetdir = do
         o <- allFacts nodename >>= queryfunc nodename
         case o of
             Left err -> error err
-            Right x -> return x
+            Right (c,m,_) -> return $ foldl' addRequire c (Map.toList m)
         )
 
 {-| A helper for when you don't want to use PuppetDB -}

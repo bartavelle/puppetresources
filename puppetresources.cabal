@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                puppetresources
-version:             0.3.6
+version:             0.4.0
 synopsis:            A program that displays the puppet resources associated to a node given .pp files.
 -- description:         
 license:             GPL-3
@@ -25,7 +25,7 @@ executable puppetresources
   ghc-options:         -rtsopts
   -- other-modules:       
   build-depends:       base >=3 && <5,
-                       language-puppet >= 0.2.2.0,
+                       language-puppet >= 0.3.0.0,
                        hsfacter        >= 0.2.0.0,
                        containers,
                        hslogger,
