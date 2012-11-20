@@ -102,23 +102,27 @@ And then run the following command every time you need to verify your changes ar
 module Main (initializedaemon, diff, main) where
 
 import System.Environment
-import Puppet.Init
-import Puppet.Daemon
-import Puppet.Printers
-import Puppet.Interpreter.Types
-import Facter
 import Data.List
 import System.IO
 import qualified Data.Map as Map
 import Data.Algorithm.Diff
 import qualified System.Log.Logger as LOG
-import Puppet.DSL.Loader
 import System.Exit
 import Control.Monad
 import Control.Monad.Error (runErrorT)
-import Puppet.DSL.Printer
 import Data.Char (toLower)
+import qualified Data.ByteString.Lazy.Char8 as BSL
+
+import Facter
+
+import Puppet.Init
+import Puppet.Daemon
+import Puppet.Printers
+import Puppet.Interpreter.Types
 import Puppet.Testing
+import Puppet.DSL.Printer
+import Puppet.DSL.Loader
+import Puppet.JsonCatalog
 
 usage = error "Usage: puppetresource puppetdir nodename [filename]"
 
@@ -133,7 +137,7 @@ Returns the final catalog when given a node name. Note that this is pretty
 hackish as it will generate facts from the local computer !
 -}
 
-initializedaemonWithPuppet :: Maybe String -> String -> IO ([Char] -> IO FinalCatalog)
+initializedaemonWithPuppet :: Maybe String -> String -> IO ([Char] -> IO (FinalCatalog, EdgeMap))
 initializedaemonWithPuppet purl puppetdir = do
     LOG.updateGlobalLogger "Puppet.Daemon" (LOG.setLevel LOG.WARNING)
     prefs <- genPrefs puppetdir
@@ -142,11 +146,12 @@ initializedaemonWithPuppet purl puppetdir = do
         o <- allFacts nodename >>= queryfunc nodename
         case o of
             Left err -> error err
-            Right (c,m,_) -> return $ foldl' addRequire c (Map.toList m)
+            Right (c,m,_) -> do
+                return $ (foldl' addRequire c (Map.toList m), m)
         )
 
 {-| A helper for when you don't want to use PuppetDB -}
-initializedaemon :: String -> IO ([Char] -> IO FinalCatalog)
+initializedaemon :: String -> IO ([Char] -> IO (FinalCatalog, EdgeMap))
 initializedaemon = initializedaemonWithPuppet Nothing
 
 showparam (k,v) = k ++ " => " ++ show v
@@ -282,11 +287,15 @@ main = do
                 Nothing    -> printContent resname cat
 
     queryfunc <- initializedaemonWithPuppet puppeturl puppetdir
-    x <- queryfunc nodename
+    (x,m) <- queryfunc nodename
     tests <- testCatalog puppetdir x []
     case tests of
         Right _ -> return ()
         Left rr -> error rr
     if length rargs == 3
-        then handlePrintResource (rargs !! 2) x
+        then if (rargs !! 2) == "JSON"
+                 then do
+                     let json = catalog2JSon nodename 1 x m
+                     BSL.putStrLn json
+                 else handlePrintResource (rargs !! 2) x
         else putStrLn $ showFCatalog x

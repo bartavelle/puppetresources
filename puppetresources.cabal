@@ -30,4 +30,5 @@ executable puppetresources
                        containers,
                        hslogger,
                        Diff,
-                       mtl
+                       mtl,
+                       bytestring
