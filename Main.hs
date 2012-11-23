@@ -137,7 +137,7 @@ Returns the final catalog when given a node name. Note that this is pretty
 hackish as it will generate facts from the local computer !
 -}
 
-initializedaemonWithPuppet :: Maybe String -> String -> IO ([Char] -> IO (FinalCatalog, EdgeMap))
+initializedaemonWithPuppet :: Maybe String -> String -> IO ([Char] -> IO (FinalCatalog, EdgeMap, FinalCatalog))
 initializedaemonWithPuppet purl puppetdir = do
     LOG.updateGlobalLogger "Puppet.Daemon" (LOG.setLevel LOG.WARNING)
     prefs <- genPrefs puppetdir
@@ -146,12 +146,12 @@ initializedaemonWithPuppet purl puppetdir = do
         o <- allFacts nodename >>= queryfunc nodename
         case o of
             Left err -> error err
-            Right (c,m,_) -> do
-                return $ (foldl' addRequire c (Map.toList m), m)
+            Right (c,m,e) -> do
+                return $ (foldl' addRequire c (Map.toList m), m, e)
         )
 
 {-| A helper for when you don't want to use PuppetDB -}
-initializedaemon :: String -> IO ([Char] -> IO (FinalCatalog, EdgeMap))
+initializedaemon :: String -> IO ([Char] -> IO (FinalCatalog, EdgeMap, FinalCatalog))
 initializedaemon = initializedaemonWithPuppet Nothing
 
 showparam (k,v) = k ++ " => " ++ show v
@@ -287,7 +287,7 @@ main = do
                 Nothing    -> printContent resname cat
 
     queryfunc <- initializedaemonWithPuppet puppeturl puppetdir
-    (x,m) <- queryfunc nodename
+    (x,m,e) <- queryfunc nodename
     tests <- testCatalog puppetdir x []
     case tests of
         Right _ -> return ()
@@ -295,7 +295,7 @@ main = do
     if length rargs == 3
         then if (rargs !! 2) == "JSON"
                  then do
-                     let json = catalog2JSon nodename 1 x m
+                     let json = catalog2JSon nodename 1 x e m
                      BSL.putStrLn json
                  else handlePrintResource (rargs !! 2) x
         else putStrLn $ showFCatalog x
