@@ -156,12 +156,15 @@ initializedaemon = initializedaemonWithPuppet Nothing
 
 showparam (k,v) = k ++ " => " ++ show v
 
-showtdiff :: (DI, String) -> String
-showtdiff (F, s) = "- " ++ s
-showtdiff (S, s) = "+ " ++ s
+showtdiff :: (Diff String) -> String
+showtdiff (First s) = "- " ++ s
+showtdiff (Second s) = "+ " ++ s
 
 textdiff :: ResolvedValue -> ResolvedValue -> [String]
-textdiff (ResolvedString s1) (ResolvedString s2) = map showtdiff $ filter (\(x,_) -> x /= B) $ getDiff (lines s1) (lines s2)
+textdiff (ResolvedString s1) (ResolvedString s2) = map showtdiff $ filter (not . isBoth) $ getDiff (lines s1) (lines s2)
+    where
+        isBoth Both{} = True
+        isBoth _ = False
 
 showpdiff :: String -> ResolvedValue -> ResolvedValue -> [String]
 showpdiff pname pval1 pval2

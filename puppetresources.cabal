@@ -29,6 +29,6 @@ executable puppetresources
                        hsfacter        >= 0.2.0.0,
                        containers,
                        hslogger,
-                       Diff,
+                       Diff >= 0.2.0,
                        mtl,
                        bytestring
