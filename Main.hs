@@ -291,14 +291,15 @@ main = do
 
     queryfunc <- initializedaemonWithPuppet puppeturl puppetdir
     (x,m,e) <- queryfunc nodename
-    tests <- testCatalog puppetdir x []
-    case tests of
-        Right _ -> return ()
-        Left rr -> error rr
     if length rargs == 3
         then if (rargs !! 2) == "JSON"
                  then do
                      let json = catalog2JSon nodename 1 x e m
                      BSL.putStrLn json
                  else handlePrintResource (rargs !! 2) x
-        else putStrLn $ showFCatalog x
+        else do
+            tests <- testCatalog puppetdir x []
+            case tests of
+                Right _ -> return ()
+                Left rr -> error rr
+            putStrLn $ showFCatalog x
