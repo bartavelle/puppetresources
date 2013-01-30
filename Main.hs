@@ -123,6 +123,7 @@ import Puppet.Testing
 import Puppet.DSL.Printer
 import Puppet.DSL.Loader
 import Puppet.JsonCatalog
+import PuppetDB.Rest
 
 usage = error "Usage: puppetresource puppetdir nodename [filename]"
 
@@ -141,7 +142,10 @@ initializedaemonWithPuppet :: Maybe String -> String -> IO ([Char] -> IO (FinalC
 initializedaemonWithPuppet purl puppetdir = do
     LOG.updateGlobalLogger "Puppet.Daemon" (LOG.setLevel LOG.WARNING)
     prefs <- genPrefs puppetdir
-    (queryfunc, _, _, _) <- initDaemon (prefs { puppetDBurl = purl })
+    let pdbr = case purl of
+                Nothing  -> prefs
+                Just url -> prefs { puppetDBquery = pdbRequest url }
+    (queryfunc, _, _, _) <- initDaemon pdbr
     return (\nodename -> do
         o <- allFacts nodename >>= queryfunc nodename
         case o of
