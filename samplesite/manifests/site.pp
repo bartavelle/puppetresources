@@ -23,6 +23,10 @@ node 'test.nod' {
     include git::gitosis
 }
 
+node 'fun.nod' {
+    file { '/tmp/x': content => fu("dqsqsd"); }
+}
+
 node 'test2.nod' {
     apt::builddep { "glusterfs-server": }
     apt::force { "glusterfs-server":
