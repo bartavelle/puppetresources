@@ -201,7 +201,7 @@ getdiff (rtype,rname) r1 r2 = rtype ++ "[" ++ rname ++ "]" ++ " {\n" ++ (concatM
         distincts = Map.foldrWithKey (paramdiff p1) [] p2
 
 rescompare :: RResource -> RResource -> Bool
-rescompare (RResource _ a1 b1 c1 d1 _) (RResource _ a2 b2 c2 d2 _) = (a1==a2) && (b1==b2) && (c1==c2) && (d1==d2)
+rescompare (RResource _ a1 b1 c1 d1 _ _) (RResource _ a2 b2 c2 d2 _ _) = (a1==a2) && (b1==b2) && (c1==c2) && (d1==d2)
 
 checkdiff :: FinalCatalog -> ResIdentifier -> RResource -> (FinalCatalog, [String]) -> (FinalCatalog, [String])
 checkdiff refmap resid res (curseconds, curdiffs) = (newseconds, newdiffs)
