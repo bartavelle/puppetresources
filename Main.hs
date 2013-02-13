@@ -128,7 +128,7 @@ import PuppetDB.Rest
 usage = error "Usage: puppetresource puppetdir nodename [filename]"
 
 addRequire :: FinalCatalog -> ((ResIdentifier, ResIdentifier), LinkInfo) -> FinalCatalog
-addRequire curcat ((src, dst), (ltype, _, _)) =
+addRequire curcat ((src, dst), (ltype, _, _, _)) =
         case Map.lookup src curcat of
             Nothing -> curcat
             Just res -> Map.insert src (res { rrelations = (ltype, dst) : rrelations res }) curcat
