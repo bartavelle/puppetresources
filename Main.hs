@@ -112,6 +112,9 @@ import Control.Monad
 import Control.Monad.Error (runErrorT)
 import Data.Char (toLower)
 import qualified Data.ByteString.Lazy.Char8 as BSL
+import qualified Data.Text as T
+import qualified Data.Text.IO as T
+import Data.Monoid hiding (First)
 
 import Facter
 
@@ -124,6 +127,9 @@ import Puppet.DSL.Printer
 import Puppet.DSL.Loader
 import Puppet.JsonCatalog
 import PuppetDB.Rest
+
+tshow :: Show a => a -> T.Text
+tshow = T.pack . show
 
 usage = error "Usage: puppetresource puppetdir nodename [filename]"
 
@@ -138,7 +144,7 @@ Returns the final catalog when given a node name. Note that this is pretty
 hackish as it will generate facts from the local computer !
 -}
 
-initializedaemonWithPuppet :: Maybe String -> String -> IO ([Char] -> IO (FinalCatalog, EdgeMap, FinalCatalog))
+initializedaemonWithPuppet :: Maybe T.Text -> String -> IO (T.Text -> IO (FinalCatalog, EdgeMap, FinalCatalog))
 initializedaemonWithPuppet purl puppetdir = do
     LOG.updateGlobalLogger "Puppet.Daemon" (LOG.setLevel LOG.WARNING)
     prefs <- genPrefs puppetdir
@@ -155,27 +161,28 @@ initializedaemonWithPuppet purl puppetdir = do
         )
 
 {-| A helper for when you don't want to use PuppetDB -}
-initializedaemon :: String -> IO ([Char] -> IO (FinalCatalog, EdgeMap, FinalCatalog))
+initializedaemon :: String -> IO (T.Text -> IO (FinalCatalog, EdgeMap, FinalCatalog))
 initializedaemon = initializedaemonWithPuppet Nothing
 
-showparam (k,v) = k ++ " => " ++ show v
+showparam :: (T.Text, ResolvedValue) -> T.Text
+showparam (k,v) = k <> " => " <> tshow v
 
-showtdiff :: (Diff String) -> String
-showtdiff (First s) = "- " ++ s
-showtdiff (Second s) = "+ " ++ s
+showtdiff :: (Diff T.Text) -> T.Text
+showtdiff (First s)  = "- " <> s
+showtdiff (Second s) = "+ " <> s
 
-textdiff :: ResolvedValue -> ResolvedValue -> [String]
-textdiff (ResolvedString s1) (ResolvedString s2) = map showtdiff $ filter (not . isBoth) $ getDiff (lines s1) (lines s2)
+textdiff :: ResolvedValue -> ResolvedValue -> [T.Text]
+textdiff (ResolvedString s1) (ResolvedString s2) = map showtdiff $ filter (not . isBoth) $ getDiff (T.lines s1) (T.lines s2)
     where
         isBoth Both{} = True
         isBoth _ = False
 
-showpdiff :: String -> ResolvedValue -> ResolvedValue -> [String]
+showpdiff :: T.Text -> ResolvedValue -> ResolvedValue -> [T.Text]
 showpdiff pname pval1 pval2
     | pname == "content" = ["# content\n"] ++ textdiff pval1 pval2
-    | otherwise = ["- " ++ showparam (pname, pval1), "+ " ++ showparam (pname, pval2)]
+    | otherwise = ["- " <> showparam (pname, pval1), "+ " <> showparam (pname, pval2)]
 
-paramdiff :: Map.Map String ResolvedValue -> String -> ResolvedValue -> [String] -> [String]
+paramdiff :: Map.Map T.Text ResolvedValue -> T.Text -> ResolvedValue -> [T.Text] -> [T.Text]
 paramdiff lpmap rpname rpval curdiff = curdiff ++ newdiff
     where
         mlpval = Map.lookup rpname lpmap
@@ -186,8 +193,8 @@ paramdiff lpmap rpname rpval curdiff = curdiff ++ newdiff
                     then []
                     else showpdiff rpname lpval rpval
 
-getdiff :: ResIdentifier -> RResource -> RResource -> String
-getdiff (rtype,rname) r1 r2 = rtype ++ "[" ++ rname ++ "]" ++ " {\n" ++ (concatMap (\x -> x ++"\n") difflist) ++ "}"
+getdiff :: ResIdentifier -> RResource -> RResource -> T.Text
+getdiff (rtype,rname) r1 r2 = rtype <> "[" <> rname <> "] {\n" <> (T.intercalate "\n" difflist) <> "\n}"
     where
         difflist = diffrelations ++ diffparams
         diffrelations = []
@@ -196,14 +203,14 @@ getdiff (rtype,rname) r1 r2 = rtype ++ "[" ++ rname ++ "]" ++ " {\n" ++ (concatM
         onlyleft  = Map.difference p1 p2
         onlyright = Map.difference p2 p1
         diffparams = ol ++ or ++ distincts
-        ol = map (\x -> "- " ++ showparam x) $ Map.toList onlyleft
-        or = map (\x -> "+ " ++ showparam x) $ Map.toList onlyright
+        ol = map (\x -> "- " <> showparam x) $ Map.toList onlyleft
+        or = map (\x -> "+ " <> showparam x) $ Map.toList onlyright
         distincts = Map.foldrWithKey (paramdiff p1) [] p2
 
 rescompare :: RResource -> RResource -> Bool
 rescompare (RResource _ a1 b1 c1 d1 _ _) (RResource _ a2 b2 c2 d2 _ _) = (a1==a2) && (b1==b2) && (c1==c2) && (d1==d2)
 
-checkdiff :: FinalCatalog -> ResIdentifier -> RResource -> (FinalCatalog, [String]) -> (FinalCatalog, [String])
+checkdiff :: FinalCatalog -> ResIdentifier -> RResource -> (FinalCatalog, [T.Text]) -> (FinalCatalog, [T.Text])
 checkdiff refmap resid res (curseconds, curdiffs) = (newseconds, newdiffs)
     where
         myres = Map.lookup resid refmap
@@ -228,11 +235,11 @@ diff c1 c2 = do
         (onlyseconds, differences) = Map.foldrWithKey (checkdiff c1) (Map.empty, []) c2
     if Map.null onlyfirsts
         then return ()
-        else putStrLn $ "Only in the first  catalog:\n" ++ showFCatalog onlyfirsts
+        else T.putStrLn $ "Only in the first  catalog:\n" <> showFCatalog onlyfirsts
     if Map.null onlyseconds
         then return ()
-        else putStrLn $ "Only in the second catalog:\n" ++ showFCatalog onlyseconds
-    mapM_ putStrLn differences
+        else T.putStrLn $ "Only in the second catalog:\n" <> showFCatalog onlyseconds
+    mapM_ T.putStrLn differences
 
 doparse :: FilePath -> IO ()
 doparse fp = do
@@ -243,50 +250,50 @@ doparse fp = do
     exitWith ExitSuccess
 
 -- prints the content of a file
-printContent :: String -> FinalCatalog -> IO ()
+printContent :: T.Text -> FinalCatalog -> IO ()
 printContent filename catalog =
     case (Map.lookup ("file", filename) catalog) of
         Nothing -> error "File not found"
         Just r  -> case (Map.lookup "content" (rrparams r)) of
             Nothing -> error "This file has no content"
-            Just (ResolvedString c)  -> putStrLn c
+            Just (ResolvedString c)  -> T.putStrLn c
             Just x -> print x
 
 -- pretty print a resource
 -- if this resource has content, works like printContent
-printResource :: String -> String -> FinalCatalog -> IO ()
+printResource :: T.Text -> T.Text -> FinalCatalog -> IO ()
 printResource restype resname catalog =
     case (Map.lookup (restype, resname) catalog) of
-        Nothing -> error $ "Resource " ++ restype ++ "[" ++ resname ++ "] does not exists."
-        Just r  -> putStrLn $ showFCatalog $ Map.singleton (restype, resname) r
+        Nothing -> error $ T.unpack $ "Resource " <> restype <> "[" <> resname <> "] does not exists."
+        Just r  -> T.putStrLn $ showFCatalog $ Map.singleton (restype, resname) r
 
-r2s :: ResolvedValue -> String
+r2s :: ResolvedValue -> T.Text
 r2s (ResolvedString x)  = x
-r2s x                   = show x
+r2s x                   = tshow x
 
 -- filters resources by type name
-getResourcesOfType :: String -> FinalCatalog -> FinalCatalog
+getResourcesOfType :: T.Text -> FinalCatalog -> FinalCatalog
 getResourcesOfType rtype = Map.filter (\r -> rrtype r == rtype)
 
 -- just extract the names of the resources
-getResourceNames :: FinalCatalog -> [String]
+getResourceNames :: FinalCatalog -> [T.Text]
 getResourceNames cat = map snd $ Map.keys cat
 
 main :: IO ()
 main = do
-    args <- getArgs
+    args <- fmap (map T.pack) getArgs
     let (rargs, puppeturl) = case args of
                              ("-r":pu:xs) -> (xs,   Just pu)
                              _            -> (args, Nothing)
-    when (length rargs == 1) (doparse  (head rargs))
+    when (length rargs == 1) (doparse (T.unpack $ head rargs))
     let (puppetdir, nodename) | (length rargs /= 2) && (length rargs /= 3) = usage
-                              | otherwise = (rargs !! 0, rargs !! 1)
-        getresname :: String -> Maybe (String, String)
+                              | otherwise = (T.unpack (rargs !! 0), rargs !! 1)
+        getresname :: T.Text -> Maybe (T.Text, T.Text)
         getresname r =
-            let isresname = ((head $ reverse r) == ']') && ('[' `elem` r)
-                (rtype, rname) = break (== '[') r
+            let isresname = (T.last r == ']') && (T.isInfixOf "[" r)
+                (rtype, rname) = T.break (== '[') r
             in if isresname
-                then Just (map toLower rtype, tail $ reverse $ (tail $ reverse rname))
+                then Just (T.map toLower rtype, T.tail $ T.init rname)
                 else Nothing
         handlePrintResource resname cat
             = case (getresname resname) of
@@ -306,4 +313,4 @@ main = do
             case tests of
                 Right _ -> return ()
                 Left rr -> error rr
-            putStrLn $ showFCatalog x
+            T.putStrLn $ showFCatalog x

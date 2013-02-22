@@ -22,7 +22,8 @@ source-repository head
 executable puppetresources
   extensions:          BangPatterns
   main-is:             Main.hs
-  ghc-options:         -rtsopts
+  ghc-options:         -rtsopts -Wall -O2
+  extensions:          OverloadedStrings
   -- other-modules:       
   build-depends:       base >=3 && <5,
                        language-puppet >= 0.4.0,
@@ -31,4 +32,5 @@ executable puppetresources
                        hslogger,
                        Diff >= 0.2.0,
                        mtl,
-                       bytestring
+                       bytestring,
+                       text
