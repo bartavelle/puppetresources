@@ -103,7 +103,6 @@ module Main (initializedaemon, diff, main) where
 
 import System.Environment
 import Data.List
-import System.IO
 import qualified Data.Map as Map
 import Data.Algorithm.Diff
 import qualified System.Log.Logger as LOG
@@ -144,7 +143,7 @@ Returns the final catalog when given a node name. Note that this is pretty
 hackish as it will generate facts from the local computer !
 -}
 
-initializedaemonWithPuppet :: Maybe T.Text -> String -> IO (T.Text -> IO (FinalCatalog, EdgeMap, FinalCatalog))
+initializedaemonWithPuppet :: Maybe T.Text -> T.Text -> IO (T.Text -> IO (FinalCatalog, EdgeMap, FinalCatalog))
 initializedaemonWithPuppet purl puppetdir = do
     LOG.updateGlobalLogger "Puppet.Daemon" (LOG.setLevel LOG.WARNING)
     prefs <- genPrefs puppetdir
@@ -161,7 +160,7 @@ initializedaemonWithPuppet purl puppetdir = do
         )
 
 {-| A helper for when you don't want to use PuppetDB -}
-initializedaemon :: String -> IO (T.Text -> IO (FinalCatalog, EdgeMap, FinalCatalog))
+initializedaemon :: T.Text -> IO (T.Text -> IO (FinalCatalog, EdgeMap, FinalCatalog))
 initializedaemon = initializedaemonWithPuppet Nothing
 
 showparam :: (T.Text, ResolvedValue) -> T.Text
@@ -170,12 +169,14 @@ showparam (k,v) = k <> " => " <> tshow v
 showtdiff :: (Diff T.Text) -> T.Text
 showtdiff (First s)  = "- " <> s
 showtdiff (Second s) = "+ " <> s
+showtdiff (Both _ _) = ""
 
 textdiff :: ResolvedValue -> ResolvedValue -> [T.Text]
 textdiff (ResolvedString s1) (ResolvedString s2) = map showtdiff $ filter (not . isBoth) $ getDiff (T.lines s1) (T.lines s2)
     where
         isBoth Both{} = True
         isBoth _ = False
+textdiff a b = error ("hum? " ++ show a ++ " " ++ show b)
 
 showpdiff :: T.Text -> ResolvedValue -> ResolvedValue -> [T.Text]
 showpdiff pname pval1 pval2
@@ -202,9 +203,9 @@ getdiff (rtype,rname) r1 r2 = rtype <> "[" <> rname <> "] {\n" <> (T.intercalate
         p2 = rrparams r2
         onlyleft  = Map.difference p1 p2
         onlyright = Map.difference p2 p1
-        diffparams = ol ++ or ++ distincts
-        ol = map (\x -> "- " <> showparam x) $ Map.toList onlyleft
-        or = map (\x -> "+ " <> showparam x) $ Map.toList onlyright
+        diffparams = ole ++ ori ++ distincts
+        ole = map (\x -> "- " <> showparam x) $ Map.toList onlyleft
+        ori = map (\x -> "+ " <> showparam x) $ Map.toList onlyright
         distincts = Map.foldrWithKey (paramdiff p1) [] p2
 
 rescompare :: RResource -> RResource -> Bool
@@ -287,7 +288,7 @@ main = do
                              _            -> (args, Nothing)
     when (length rargs == 1) (doparse (T.unpack $ head rargs))
     let (puppetdir, nodename) | (length rargs /= 2) && (length rargs /= 3) = usage
-                              | otherwise = (T.unpack (rargs !! 0), rargs !! 1)
+                              | otherwise = (rargs !! 0, rargs !! 1)
         getresname :: T.Text -> Maybe (T.Text, T.Text)
         getresname r =
             let isresname = (T.last r == ']') && (T.isInfixOf "[" r)
