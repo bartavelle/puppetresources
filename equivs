@@ -1,7 +1,7 @@
 Package: puppetresources
 Version: 0.4.1
-Maintainer: Simon Marechal <bartavelle@gmail.com>
-Files: dist/build/puppetresources/puppetresources /usr/local/bin/puppetresources
+Maintainer: Bartavelle <bartavelle@gmail.com>
+Files: puppetresources /usr/local/bin/puppetresources
 Architecture: amd64
 Description: A program that displays the puppet resources associated to a node given .pp files.
 
