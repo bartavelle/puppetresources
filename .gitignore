@@ -1,4 +1,2 @@
 /dist
-*.hi
-*.o
-*~
+/puppetresources_*
