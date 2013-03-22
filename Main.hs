@@ -155,8 +155,7 @@ initializedaemonWithPuppet purl puppetdir = do
         o <- allFacts nodename >>= queryfunc nodename
         case o of
             Left err -> error err
-            Right (c,m,e) -> do
-                return $ (foldl' addRequire c (Map.toList m), m, e)
+            Right (c,m,e) -> return (foldl' addRequire c (Map.toList m), m, e)
         )
 
 {-| A helper for when you don't want to use PuppetDB -}
@@ -166,7 +165,7 @@ initializedaemon = initializedaemonWithPuppet Nothing
 showparam :: (T.Text, ResolvedValue) -> T.Text
 showparam (k,v) = k <> " => " <> tshow v
 
-showtdiff :: (Diff T.Text) -> T.Text
+showtdiff :: Diff T.Text -> T.Text
 showtdiff (First s)  = "- " <> s
 showtdiff (Second s) = "+ " <> s
 showtdiff (Both _ _) = ""
@@ -180,7 +179,7 @@ textdiff a b = error ("hum? " ++ show a ++ " " ++ show b)
 
 showpdiff :: T.Text -> ResolvedValue -> ResolvedValue -> [T.Text]
 showpdiff pname pval1 pval2
-    | pname == "content" = ["# content\n"] ++ textdiff pval1 pval2
+    | pname == "content" = "# content\n" : textdiff pval1 pval2
     | otherwise = ["- " <> showparam (pname, pval1), "+ " <> showparam (pname, pval2)]
 
 paramdiff :: Map.Map T.Text ResolvedValue -> T.Text -> ResolvedValue -> [T.Text] -> [T.Text]
@@ -195,7 +194,7 @@ paramdiff lpmap rpname rpval curdiff = curdiff ++ newdiff
                     else showpdiff rpname lpval rpval
 
 getdiff :: ResIdentifier -> RResource -> RResource -> T.Text
-getdiff (rtype,rname) r1 r2 = rtype <> "[" <> rname <> "] {\n" <> (T.intercalate "\n" difflist) <> "\n}"
+getdiff (rtype,rname) r1 r2 = rtype <> "[" <> rname <> "] {\n" <> T.intercalate "\n" difflist <> "\n}"
     where
         difflist = diffrelations ++ diffparams
         diffrelations = []
@@ -223,7 +222,7 @@ checkdiff refmap resid res (curseconds, curdiffs) = (newseconds, newdiffs)
             Just x ->
                 if rescompare x res
                     then curdiffs
-                    else (getdiff resid x res) : curdiffs
+                    else getdiff resid x res : curdiffs
 
 {-| The diffing function, will output what is only in the first catalog, then
 what is only in the second, and will end with a diff between common resources.
@@ -234,12 +233,8 @@ diff :: FinalCatalog -> FinalCatalog -> IO ()
 diff c1 c2 = do
     let onlyfirsts = Map.difference c1 c2
         (onlyseconds, differences) = Map.foldrWithKey (checkdiff c1) (Map.empty, []) c2
-    if Map.null onlyfirsts
-        then return ()
-        else T.putStrLn $ "Only in the first  catalog:\n" <> showFCatalog onlyfirsts
-    if Map.null onlyseconds
-        then return ()
-        else T.putStrLn $ "Only in the second catalog:\n" <> showFCatalog onlyseconds
+    unless (Map.null onlyfirsts)  $ T.putStrLn $ "Only in the first  catalog:\n" <> showFCatalog onlyfirsts
+    unless (Map.null onlyseconds) $ T.putStrLn $ "Only in the second catalog:\n" <> showFCatalog onlyseconds
     mapM_ T.putStrLn differences
 
 doparse :: FilePath -> IO ()
@@ -253,9 +248,9 @@ doparse fp = do
 -- prints the content of a file
 printContent :: T.Text -> FinalCatalog -> IO ()
 printContent filename catalog =
-    case (Map.lookup ("file", filename) catalog) of
+    case Map.lookup ("file", filename) catalog of
         Nothing -> error "File not found"
-        Just r  -> case (Map.lookup "content" (rrparams r)) of
+        Just r  -> case Map.lookup "content" (rrparams r) of
             Nothing -> error "This file has no content"
             Just (ResolvedString c)  -> T.putStrLn c
             Just x -> print x
@@ -264,7 +259,7 @@ printContent filename catalog =
 -- if this resource has content, works like printContent
 printResource :: T.Text -> T.Text -> FinalCatalog -> IO ()
 printResource restype resname catalog =
-    case (Map.lookup (restype, resname) catalog) of
+    case Map.lookup (restype, resname) catalog of
         Nothing -> error $ T.unpack $ "Resource " <> restype <> "[" <> resname <> "] does not exists."
         Just r  -> T.putStrLn $ showFCatalog $ Map.singleton (restype, resname) r
 
@@ -291,13 +286,13 @@ main = do
                               | otherwise = (rargs !! 0, rargs !! 1)
         getresname :: T.Text -> Maybe (T.Text, T.Text)
         getresname r =
-            let isresname = (T.last r == ']') && (T.isInfixOf "[" r)
+            let isresname = T.last r == ']' && T.isInfixOf "[" r
                 (rtype, rname) = T.break (== '[') r
             in if isresname
                 then Just (T.map toLower rtype, T.tail $ T.init rname)
                 else Nothing
         handlePrintResource resname cat
-            = case (getresname resname) of
+            = case getresname resname of
                 Just (t,n) -> printResource t n cat
                 Nothing    -> printContent resname cat
 
@@ -310,7 +305,7 @@ main = do
                      BSL.putStrLn json
                  else handlePrintResource (rargs !! 2) x
         else do
-            tests <- testCatalog puppetdir x []
+            (tests,_) <- testCatalog puppetdir x []
             case tests of
                 Right _ -> return ()
                 Left rr -> error rr
