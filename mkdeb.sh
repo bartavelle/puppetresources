@@ -1,3 +1,4 @@
+#!/bin/bash
 VERSION=$1
 
 if [ -z "$VERSION" ]
@@ -11,8 +12,5 @@ cp equivs dist/build/puppetresources/ && \
     cd dist/build/puppetresources && \
     sed -i -e "s/Version: .*/Version: $VERSION/" equivs && \
     equivs-build -f equivs && \
-    mv puppetresources_*_amd64.deb ../../../ && \
-    rm -f puppetresources*.changes && \
-    rm -f puppetresources*.dsc && \
-    rm -f puppetresources*.tar.gz
+    mv puppetresources_*{_amd64.deb,_amd64.changes,.dsc,.tar.gz} ../../../
 
