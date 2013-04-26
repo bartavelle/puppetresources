@@ -114,6 +114,7 @@ import qualified Data.ByteString.Lazy.Char8 as BSL
 import qualified Data.Text as T
 import qualified Data.Text.IO as T
 import Data.Monoid hiding (First)
+import Data.Maybe (isNothing)
 
 import Facter
 
@@ -150,9 +151,13 @@ initializedaemonWithPuppet purl puppetdir = do
     let nprefs = case purl of
                      Nothing -> prefs
                      Just ur -> prefs { puppetDBquery = pdbRequest ur }
-    (queryfunc, _, _, _) <- initDaemon nprefs
+    queryfunc <- if isNothing purl
+                     then testingDaemon Nothing puppetdir allFacts
+                     else do
+                         (q, _, _, _) <- initDaemon nprefs
+                         return (\nodename -> allFacts nodename >>= q nodename)
     return (\nodename -> do
-        o <- allFacts nodename >>= queryfunc nodename
+        o <- queryfunc nodename
         case o of
             Left err -> error err
             Right (c,m,e) -> return (foldl' addRequire c (Map.toList m), m, e)
